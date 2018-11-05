@@ -1,0 +1,58 @@
+# Load custom PS1
+
+git.branch() {
+  BRANCH=$(git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/')
+  if [ "$BRANCH" == "" ]; then
+    return 1;
+  else
+    echo $BRANCH;
+  fi
+}
+
+git.root() {
+  git rev-parse --show-toplevel 2> /dev/null
+}
+
+git.pwd.relative() {
+  git rev-parse 2> /dev/null
+  if [ $? -eq 0 ]; then
+    PWD=$(pwd)
+    PWD_RELATIVE=${PWD/$(git.root)/}
+    if [ "$PWD_RELATIVE" == "" ]; then
+      echo "/"
+    else
+      echo $PWD_RELATIVE;
+    fi
+  fi
+}
+
+print.last.cmd.result() {
+  if [ $? -eq 0 ]; then
+    echo -e '\e[32m(✔)';
+  else
+    echo -e '\e[31m(✘)';
+  fi
+}
+
+print.screen.status() {
+  DIR_SCREENS="/var/run/screen/S-$USER/"
+  if [ ! -d "$DIR_SCREENS" ]; then
+    return 1;
+  fi
+  SCREENS=$(\ls "$DIR_SCREENS" | wc -l)
+  if [ "$SCREENS" -ne 0 ]; then
+    echo -e "\e[33m(${SCREENS})";
+  fi
+}
+
+print.jobs.status() {
+  local stopped=$(jobs -sp | wc -l)
+  local running=$(jobs -rp | wc -l)
+  ((running+stopped)) && echo -e "\e[33m(${running}r/${stopped}s)"
+}
+
+df.usage() {
+  df -h . | awk '{if (NR!=1) {print $5}}'
+}
+
+PS1="\[\033[36m\]┌ \$(print.last.cmd.result)\[\033[36m\][\$(df.usage)]\$(print.screen.status)\$(print.jobs.status)\[\033[36m\] \$(git.root || pwd)\[\033[32m\]\$(git.pwd.relative) (\$(git.branch || echo '--//--'))\[\033[36m\]\n└─ \[\033[00m\]"
